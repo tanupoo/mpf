@@ -5,6 +5,9 @@ from stat import S_ISDIR
 import time
 import argparse
 from decode_mime import decode_mime_file, decode_subject
+import re
+from datetime import datetime, timedelta
+from dateutil import tz
 
 def get_info(path) -> dict:
     filename, ext = os.path.splitext(path)
@@ -24,32 +27,25 @@ def get_info(path) -> dict:
                 info.update({"From": decode_subject(line)})
         return info
 
-def walk_dir(path, recursive=False, newer_than=None):
-    mails = []
-    with os.scandir(path) as fd:
-        for entry in fd:
-            if entry.name.startswith(".."):
-                continue
-            elif entry.is_dir():
-                if recursive:
-                    walk_dir(entry.path, recursive)
-            elif entry.is_symlink():
-                continue
-            elif newer_than:
-                if entry.stat().st_mtime > newer_than:
-                    mails.append(entry)
-                else:
-                    pass
-            else:
-                mails.append(entry)
-    for e in sorted(mails, key=lambda x: x.stat().st_mtime):
-        info = get_info(e.path)
-        print("##", info.get("Date"))
-        print("  -", info.get("From"))
-        print("  -", info.get("Subject"))
-        print("  -", info.get("Path"))
-
 def find_mail(path, recursive=False, newer_than=None):
+    def walk_dir(path, recursive=False, newer_than=None):
+        with os.scandir(path) as fd:
+            for entry in fd:
+                if entry.name.startswith(".."):
+                    continue
+                elif entry.is_dir():
+                    if recursive:
+                        walk_dir(entry.path, recursive)
+                elif entry.is_symlink():
+                    continue
+                elif newer_than:
+                    if entry.stat().st_mtime > newer_than:
+                        mails.append(entry)
+                    else:
+                        pass
+                else:
+                    mails.append(entry)
+    #
     try:
         mode = os.stat(path).st_mode
         if not S_ISDIR(mode):
@@ -58,20 +54,48 @@ def find_mail(path, recursive=False, newer_than=None):
     except Exception as e:
         print(f"ERROR: {path}", e)
         return
+    mails = []
     walk_dir(path, recursive, newer_than)
+    for e in sorted(mails, key=lambda x: x.stat().st_mtime):
+        info = get_info(e.path)
+        print("##", info.get("Date"))
+        print("  -", info.get("From"))
+        print("  -", info.get("Subject"))
+        print("  -", info.get("Path"))
 
 # main
 ap = argparse.ArgumentParser()
 ap.add_argument("mail_dir", help="a directory name")
 ap.add_argument("-r", action="store_true", dest="recursively",
                 help="enable to find a mail file recursively.")
+ap.add_argument("-t", action="store", dest="date_str",
+                help="specify the date string to be picked.")
+ap.add_argument("--tz", action="store", dest="tz",
+                help="specify the timezone.")
 ap.add_argument("-d", action="store_true", dest="debug",
                 help="enable debug mode.")
 opt = ap.parse_args()
-ts = time.time() - 24*60*60  # 1day before
-ts = time.time() - 7*24*60*60  # 1day before
-ts = time.time() - 14*24*60*60  # 1day before
-ts = time.time() - 30*60  # 1day before
+
+# date_str is None: ts -> None
+# ts is not None and tz is None: newer_than -> ts
+ts_limit = None
+dt = datetime.now()
+if opt.tz:
+    dt = datetime.now(tz=tz.gettz("Asia/Tokyo"))
+    ts_limit = dt.timestamp()
+if opt.date_str:
+    if r := re.match("(\d+)w", opt.date_str):
+        delta = int(r.group(1)) * 7*24*60*60
+    elif r := re.match("(\d+)d", opt.date_str):
+        delta = int(r.group(1)) * 24*60*60
+    elif r := re.match("(\d+)h", opt.date_str):
+        delta = int(r.group(1)) * 60*60
+    elif r := re.match("(\d+)m", opt.date_str):
+        delta = int(r.group(1)) * 60
+    else:
+        raise ValueError(f"unknown format {opt.date_str}")
+    ts_limit = (dt - timedelta(seconds=delta)).timestamp()
+print(ts_limit)
 
 # body
-find_mail(opt.mail_dir, recursive=opt.recursively, newer_than=ts)
+find_mail(opt.mail_dir, recursive=opt.recursively, newer_than=ts_limit)

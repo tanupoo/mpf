@@ -7,7 +7,6 @@ def decode_subject(
         msg: str,
         ) -> str:
     # =?charset?encoding?encoded-text?=
-    # XXX need to know the right way.
     sbjs = []
     for m in decode_header(msg):
         if m[1] is None:
@@ -16,13 +15,9 @@ def decode_subject(
             elif isinstance(m[0], bytes):
                 sbjs.append(m[0].decode())
             else:
-                #raise ValueError(f"unknown type {m[0]}")
-                print(m[1])
-        elif m[1] == "utf-8":
-            sbjs.append(m[0].decode())
+                raise ValueError(f"unknown type {m[0]}")
         else:
-            #raise ValueError(f"unknown charset {m[1]}")
-            print(m[1])
+            sbjs.append(m[0].decode(m[1]))
     return "".join(sbjs)
 
 def decode_mime(
