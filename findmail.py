@@ -13,7 +13,6 @@ from email.parser import Parser as emailParser
 
 def get_info(
         path: str,
-        newer_than: int
         ) -> dict:
     filename, ext = os.path.splitext(path)
     info = {}
@@ -57,7 +56,7 @@ def find_mail(path, recursive=False, newer_than=None):
         return
     walk_dir(path, recursive, newer_than)
     for e in sorted(mails, key=lambda x: x.stat().st_mtime):
-        info = get_info(e.path, newer_than)
+        info = get_info(e.path)
         print("##", info.get("Date"))
         print("  -", info.get("From"))
         print("  -", info.get("Subject"))
@@ -68,35 +67,34 @@ ap = argparse.ArgumentParser()
 ap.add_argument("mail_dir", help="a directory name")
 ap.add_argument("-r", action="store_true", dest="recursively",
                 help="enable to find a mail file recursively.")
-ap.add_argument("-t", action="store", dest="date_str",
-                help="specify the date string to be picked.")
+ap.add_argument("-t", action="store", dest="time_span",
+                help="specify the span string to be picked.")
 ap.add_argument("--tz", action="store", dest="tz",
                 help="specify the timezone.")
 ap.add_argument("-d", action="store_true", dest="debug",
                 help="enable debug mode.")
 opt = ap.parse_args()
 
-# date_str is None: ts -> None
+# time_span is None: ts -> None
 # ts is not None and tz is None: newer_than -> ts
-ts_limit = None
 dt = datetime.now()
 if opt.tz:
     dt = datetime.now(tz=tz.gettz("Asia/Tokyo"))
     ts_limit = dt.timestamp()
-if opt.date_str:
-    if r := re.match("(\d+)w", opt.date_str):
+if opt.time_span:
+    if r := re.match("(\d+)w", opt.time_span):
         delta = int(r.group(1)) * 7*24*60*60
-    elif r := re.match("(\d+)d", opt.date_str):
+    elif r := re.match("(\d+)d", opt.time_span):
         delta = int(r.group(1)) * 24*60*60
-    elif r := re.match("(\d+)h", opt.date_str):
+    elif r := re.match("(\d+)h", opt.time_span):
         delta = int(r.group(1)) * 60*60
-    elif r := re.match("(\d+)m", opt.date_str):
+    elif r := re.match("(\d+)m", opt.time_span):
         delta = int(r.group(1)) * 60
     else:
-        raise ValueError(f"unknown format {opt.date_str}")
-    ts_limit = (dt - timedelta(seconds=delta)).timestamp()
-if ts_limit is None:
-    ts_limit = 60*60 # default
+        raise ValueError(f"unknown format {opt.time_span}")
+else:
+    delta = 60*60 # 1 hour
+ts_limit = (dt - timedelta(seconds=delta)).timestamp()
 
 # body
 find_mail(opt.mail_dir, recursive=opt.recursively, newer_than=ts_limit)
