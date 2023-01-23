@@ -1,7 +1,8 @@
 
+import sys
 from email.message import Message as emailMessage
 from email.header import decode_header
-from read_mime_file import read_mime_file
+from email import message_from_file
 
 def decode_subject(
         msg: str,
@@ -64,6 +65,14 @@ def decode_mime(
                         print(body.decode(charset))
                     else:
                         print(f"ERROR: the option -o is required for {ct}")
+
+def read_mime_file(mime_file: str) -> emailMessage:
+    if mime_file is None:
+        msg = message_from_file(sys.stdin)
+    else:
+        with open(mime_file, "r") as fd:
+            msg = message_from_file(fd)
+    return msg
 
 def decode_mime_file(
         mime_file: str,
