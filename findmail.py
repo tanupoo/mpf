@@ -7,27 +7,26 @@ import argparse
 from decode_mime import decode_mime_file, decode_subject
 import re
 from datetime import datetime, timedelta
+from dateutil.parser import parse as dt_parse
 from dateutil import tz
+from email.parser import Parser as emailParser
 
-def get_info(path) -> dict:
+def get_info(
+        path: str,
+        newer_than: int
+        ) -> dict:
     filename, ext = os.path.splitext(path)
     info = {}
     info.update({"Path": path})
     with open(path) as fd:
-        for line in fd:
-            if len(line) == 0:
-                # only scan the headers.
-                break
-            line = line.strip()
-            if line.startswith("Subject:"):
-                info.update({"Subject": decode_subject(line)})
-            if line.startswith("Date:"):
-                info.update({"Date": line})
-            if line.startswith("From:"):
-                info.update({"From": decode_subject(line)})
-        return info
+        items = dict(emailParser().parse(fd))
+    info.update({"Date": dt_parse(items.get("Date"))})
+    info.update({"Subject": decode_subject(items.get("Subject"))})
+    info.update({"From": decode_subject(items.get("From"))})
+    return info
 
 def find_mail(path, recursive=False, newer_than=None):
+    mails = []  # updated in walk_dir()
     def walk_dir(path, recursive=False, newer_than=None):
         with os.scandir(path) as fd:
             for entry in fd:
@@ -39,7 +38,9 @@ def find_mail(path, recursive=False, newer_than=None):
                 elif entry.is_symlink():
                     continue
                 elif newer_than:
-                    if entry.stat().st_mtime > newer_than:
+                    if entry.stat().st_mtime >= newer_than:
+                        # this is the 1st filter.
+                        # The 2nd filter will be done later at get_info().
                         mails.append(entry)
                     else:
                         pass
@@ -54,10 +55,9 @@ def find_mail(path, recursive=False, newer_than=None):
     except Exception as e:
         print(f"ERROR: {path}", e)
         return
-    mails = []
     walk_dir(path, recursive, newer_than)
     for e in sorted(mails, key=lambda x: x.stat().st_mtime):
-        info = get_info(e.path)
+        info = get_info(e.path, newer_than)
         print("##", info.get("Date"))
         print("  -", info.get("From"))
         print("  -", info.get("Subject"))
@@ -95,7 +95,8 @@ if opt.date_str:
     else:
         raise ValueError(f"unknown format {opt.date_str}")
     ts_limit = (dt - timedelta(seconds=delta)).timestamp()
-print(ts_limit)
+if ts_limit is None:
+    ts_limit = 60*60 # default
 
 # body
 find_mail(opt.mail_dir, recursive=opt.recursively, newer_than=ts_limit)
