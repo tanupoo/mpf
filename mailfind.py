@@ -50,20 +50,21 @@ def find_mail_quick(
     for entry in target_mails:
         if opt.debug:
             print("-->", entry.path)
-        info = get_mail_info(entry.path)
+        info = get_mail_info(entry.path, default_tz)
         dt_of_mtime = datetime.fromtimestamp(entry.stat().st_mtime, tz=default_tz)
         mail_date = info.get("Date")
-        if opt.debug:
-            print("  mtime:", dt_of_mtime)
-            print("  Date :", mail_date)
         if mail_date is not None:
             local_date = mail_date.astimezone(tz=default_tz)
         else:
             local_date = None
+        if opt.debug:
+            print("  mtime:", dt_of_mtime)
+            print("  Date :", mail_date)
         info.update({
                 "mtime": dt_of_mtime,
                 "localDate": local_date,
                 })
+        mail_infos.append(info)
     #
     for mi in sorted(mail_infos, key=lambda x: (x.get("Date") or x.get("mtime"))):
         print("##", mi.get("Path"))
@@ -93,7 +94,7 @@ def find_mail(
                 else:
                     if opt.debug:
                         print("-->", entry.path)
-                    info = get_mail_info(entry.path)
+                    info = get_mail_info(entry.path, default_tz)
                     dt = info.get("Date")
                     dt_of_mtime = datetime.fromtimestamp(entry.stat().st_mtime, tz=default_tz)
                     if opt.debug:
