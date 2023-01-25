@@ -11,6 +11,68 @@ from dateutil import tz
 
 tz_str = "Asia/Tokyo"
 
+def find_mail_quick(
+        path: str,
+        recursive: bool,
+        dt_begin: datetime,
+        dt_end: datetime
+        ):
+    target_mails = []  # updated in walk_dir()
+    ts_begin = dt_begin.timestamp()
+    ts_end = dt_end.timestamp()
+    def walk_dir(path):
+        with os.scandir(path) as fd:
+            for entry in fd:
+                if entry.name.startswith(".."):
+                    continue
+                elif entry.is_dir():
+                    if recursive:
+                        walk_dir(entry.path, recursive)
+                elif entry.is_symlink():
+                    continue
+                else:
+                    if ts_begin <= entry.stat().st_mtime <= ts_end:
+                        target_mails.append(entry)
+                    else:
+                        # just ignore if span doesn't exist.
+                        pass
+    #
+    try:
+        mode = os.stat(path).st_mode
+        if not S_ISDIR(mode):
+            print(f"ERROR: {path} is not a directory.")
+            return
+    except Exception as e:
+        print(f"ERROR: {path}", e)
+        return
+    walk_dir(path)
+    mail_infos = []
+    for entry in target_mails:
+        if opt.debug:
+            print("-->", entry.path)
+        info = get_mail_info(entry.path)
+        dt_of_mtime = datetime.fromtimestamp(entry.stat().st_mtime, tz=default_tz)
+        mail_date = info.get("Date")
+        if opt.debug:
+            print("  mtime:", dt_of_mtime)
+            print("  Date :", mail_date)
+        if mail_date is not None:
+            local_date = mail_date.astimezone(tz=default_tz)
+        else:
+            local_date = None
+        info.update({
+                "mtime": dt_of_mtime,
+                "localDate": local_date,
+                })
+    #
+    for mi in sorted(mail_infos, key=lambda x: (x.get("Date") or x.get("mtime"))):
+        print("##", mi.get("Path"))
+        print("  mtime:", mi.get("mtime"))
+        print("  Mail :", mi.get("Date"))
+        print("  Local:", mi.get("localDate"))
+        print("  From :", mi.get("From"))
+        print("  Subject:", mi.get("Subject"))
+
 def find_mail(
         path: str,
         recursive: bool,
@@ -164,6 +226,8 @@ ap.add_argument("-a", action="store", dest="ts_begin",
                 help="specify the start span string.")
 ap.add_argument("-b", action="store", dest="ts_end",
                 help="specify the end span string.")
+ap.add_argument("-q", action="store_true", dest="quick_search",
+                help="specify to use quick mode.")
 ap.add_argument("--help-timespan", action="store_true", dest="show_help_timespan",
                 help="show help of time span.")
 ap.add_argument("--tz", action="store", dest="tz_str",
@@ -189,7 +253,13 @@ if opt.debug:
     print("ts_end:", ts_end)
 
 # body
-find_mail(opt.mail_dir,
-          recursive=opt.recursively,
-          ts_begin=ts_begin,
-          ts_end=ts_end)
+if opt.quick_search:
+    find_mail_quick(opt.mail_dir,
+            recursive=opt.recursively,
+            dt_begin=ts_begin,
+            dt_end=ts_end)
+else:
+    find_mail(opt.mail_dir,
+            recursive=opt.recursively,
+            ts_begin=ts_begin,
+            ts_end=ts_end)
