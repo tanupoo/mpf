@@ -76,8 +76,8 @@ def find_mail_quick(
 def find_mail(
         path: str,
         recursive: bool,
-        ts_begin: datetime,
-        ts_end: datetime
+        dt_begin: datetime,
+        dt_end: datetime
         ):
     mail_infos = []  # updated in walk_dir()
     def walk_dir(path):
@@ -103,7 +103,7 @@ def find_mail(
                         dt = dt_of_mtime
                     if dt.tzinfo is None:
                         dt = dt.astimezone(tz=default_tz)
-                    if ts_begin <= dt <= ts_end:
+                    if dt_begin <= dt <= dt_end:
                         mail_date = info.get("Date")
                         if mail_date is not None:
                             local_date = mail_date.astimezone(tz=default_tz)
@@ -208,14 +208,14 @@ def set_timespan(
             return (dt_now - timedelta(seconds=delta))
     #
     dt_now = datetime.now(tz=default_tz)
-    if opt.ts_begin or opt.ts_end:
-        ts_begin = parse_timespan_string(opt.ts_begin)
-        ts_end = parse_timespan_string(opt.ts_end)
+    if ts_begin_str or ts_end_str:
+        dt_begin = parse_timespan_string(ts_begin_str)
+        dt_end = parse_timespan_string(ts_end_str)
     else:
         # default is 1 hour.
-        ts_begin = dt_now - timedelta(seconds=60*60)
-        ts_end = dt_now
-    return ts_begin, ts_end
+        dt_begin = dt_now - timedelta(seconds=60*60)
+        dt_end = dt_now
+    return dt_begin, dt_end
 
 # main
 ap = argparse.ArgumentParser()
@@ -247,19 +247,19 @@ if opt.show_help_timespan:
 if opt.tz_str:
     tz_str = opt.tz_str
 default_tz = tz.gettz(tz_str)
-ts_begin, ts_end = set_timespan(opt.ts_begin, opt.ts_end)
+dt_begin, dt_end = set_timespan(opt.ts_begin, opt.ts_end)
 if opt.debug:
-    print("ts_begin:", ts_begin)
-    print("ts_end:", ts_end)
+    print("dt_begin:", dt_begin)
+    print("dt_end:", dt_end)
 
 # body
 if opt.quick_search:
     find_mail_quick(opt.mail_dir,
             recursive=opt.recursively,
-            dt_begin=ts_begin,
-            dt_end=ts_end)
+            dt_begin=dt_begin,
+            dt_end=dt_end)
 else:
     find_mail(opt.mail_dir,
             recursive=opt.recursively,
-            ts_begin=ts_begin,
-            ts_end=ts_end)
+            dt_begin=dt_begin,
+            dt_end=dt_end)
