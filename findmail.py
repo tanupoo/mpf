@@ -30,10 +30,13 @@ def find_mail(
                     continue
                 else:
                     if opt.debug:
-                        print("-->", e.path)
+                        print("-->", entry.path)
                     info = get_mail_info(entry.path)
                     dt = info.get("Date")
                     dt_of_mtime = datetime.fromtimestamp(entry.stat().st_mtime, tz=default_tz)
+                    if opt.debug:
+                        print("  mtime:", dt_of_mtime)
+                        print("  Date :", dt)
                     if dt is None:
                         dt = dt_of_mtime
                     if ts_begin <= dt <= ts_end:
