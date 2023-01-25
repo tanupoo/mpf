@@ -4,6 +4,7 @@ from email.message import Message as emailMessage
 from email.header import decode_header, Header
 from email import message_from_binary_file
 from dateutil.parser import parse as dt_parse
+from dateutil.parser._parser import ParserError
 from email import charset as _charset
 from typing import Union
 
@@ -139,7 +140,10 @@ def get_mail_info(
     em = read_mail_file(path)
     dt = em.get("Date")
     if dt:
-        info.update({"Date": dt_parse(dt, fuzzy_with_tokens=True)[0]})
+        try:
+            info.update({"Date": dt_parse(dt, fuzzy_with_tokens=True)[0]})
+        except ParserError:
+            info.update({"Date": None})
     else:
         info.update({"Date": None})
     info.update({"Subject": decode_header_more(em.get("Subject"))})
