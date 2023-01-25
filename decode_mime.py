@@ -10,7 +10,9 @@ from typing import Union
 def decode_header_more(
         msg: Union[str, Header],
         ) -> str:
-    if isinstance(msg, str):
+    if msg is None:
+        return None
+    elif isinstance(msg, str):
         """
         either a string or an encoded string such as =?charset?encoding?encoded-text?=
         """
@@ -115,7 +117,11 @@ def get_mail_info(
     info = {}
     info.update({"Path": path})
     em = read_mail_file(path)
-    info.update({"Date": dt_parse(em.get("Date"))})
+    dt = em.get("Date")
+    if dt:
+        info.update({"Date": dt_parse(dt, fuzzy_with_tokens=True)[0]})
+    else:
+        info.update({"Date": None})
     info.update({"Subject": decode_header_more(em.get("Subject"))})
     info.update({"From": decode_header_more(em.get("From"))})
     return info

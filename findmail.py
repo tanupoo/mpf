@@ -51,11 +51,16 @@ def find_mail(path, recursive=False, newer_than=None):
                 "mtime": datetime.fromtimestamp(e.stat().st_mtime).astimezone(tz=default_tz)
                 })
         mail_infos.append(info)
-    for mi in sorted(mail_infos, key=lambda x: x.get("Date")):
+    for mi in sorted(mail_infos, key=lambda x: (x.get("Date") or x.get("mtime"))):
+        mail_date = mi.get("Date")
+        if mail_date is not None:
+            local_date = mail_date.astimezone(tz=default_tz)
+        else:
+            local_date = None
         print("##", mi.get("Path"))
         print("  mtime:", mi.get("mtime"))
-        print("  Mail :", mi.get("Date"))
-        print("  Local:", mi.get("Date").astimezone(tz=default_tz))
+        print("  Mail :", mail_date)
+        print("  Local:", local_date)
         print("  From :", mi.get("From"))
         print("  Subject:", mi.get("Subject"))
 
