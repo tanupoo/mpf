@@ -9,8 +9,10 @@ import re
 from datetime import datetime, timedelta
 from dateutil import tz
 
+tz_str = "Asia/Tokyo"
+
 def find_mail(path, recursive=False, newer_than=None):
-    mails = []  # updated in walk_dir()
+    mail_entries = []  # updated in walk_dir()
     def walk_dir(path, recursive=False, newer_than=None):
         with os.scandir(path) as fd:
             for entry in fd:
@@ -23,13 +25,13 @@ def find_mail(path, recursive=False, newer_than=None):
                     continue
                 elif newer_than:
                     if entry.stat().st_mtime >= newer_than:
-                        # this is the 1st filter.
-                        # The 2nd filter will be done later at get_mail_info().
-                        mails.append(entry)
+                        # this is the 1st filter by the timestamp on the disk.
+                        # The 2nd filter by the date field will be done later.
+                        mail_entries.append(entry)
                     else:
                         pass
                 else:
-                    mails.append(entry)
+                    mail_entries.append(entry)
     #
     try:
         mode = os.stat(path).st_mode
@@ -40,14 +42,22 @@ def find_mail(path, recursive=False, newer_than=None):
         print(f"ERROR: {path}", e)
         return
     walk_dir(path, recursive, newer_than)
-    for e in sorted(mails, key=lambda x: x.stat().st_mtime):
+    mail_infos = []
+    for e in mail_entries:
         if opt.debug:
             print("-->", e.path)
         info = get_mail_info(e.path)
-        print("##", info.get("Date"))
-        print("  -", info.get("From"))
-        print("  -", info.get("Subject"))
-        print("  -", info.get("Path"))
+        info.update({
+                "mtime": datetime.fromtimestamp(e.stat().st_mtime).astimezone(tz=default_tz)
+                })
+        mail_infos.append(info)
+    for mi in sorted(mail_infos, key=lambda x: x.get("Date")):
+        print("##", mi.get("Path"))
+        print("  mtime:", mi.get("mtime"))
+        print("  Mail :", mi.get("Date"))
+        print("  Local:", mi.get("Date").astimezone(tz=default_tz))
+        print("  From :", mi.get("From"))
+        print("  Subject:", mi.get("Subject"))
 
 def datetime_before_month(dt, m):
     delta_y = m // 12
@@ -76,7 +86,7 @@ ap.add_argument("-t", action="store", dest="time_span",
                 help="specify the span string to be picked. "
                     "The string is either xm, xd, xw, xH, or xM (x is an integer.)"
                 )
-ap.add_argument("--tz", action="store", dest="tz",
+ap.add_argument("--tz", action="store", dest="tz_str",
                 help="specify the timezone.")
 ap.add_argument("-d", action="store_true", dest="debug",
                 help="enable debug mode.")
@@ -84,10 +94,11 @@ opt = ap.parse_args()
 
 # time_span is None: ts -> None
 # ts is not None and tz is None: newer_than -> ts
-dt = datetime.now()
-if opt.tz:
-    dt = datetime.now(tz=tz.gettz("Asia/Tokyo"))
-    ts_limit = dt.timestamp()
+if opt.tz_str:
+    tz_str = opt.tz_str
+default_tz = tz.gettz(tz_str)
+dt = datetime.now(tz=default_tz)
+ts_limit = dt.timestamp()
 if opt.time_span:
     if r := re.match("(\d+)m", opt.time_span):
         ts_limit = datetime_before_month(dt, int(r.group(1))).timestamp()
@@ -96,9 +107,9 @@ if opt.time_span:
             delta = int(r.group(1)) * 7*24*60*60
         elif r := re.match("(\d+)d", opt.time_span):
             delta = int(r.group(1)) * 24*60*60
-        elif r := re.match("(\d+)h", opt.time_span):
+        elif r := re.match("(\d+)H", opt.time_span):
             delta = int(r.group(1)) * 60*60
-        elif r := re.match("(\d+)m", opt.time_span):
+        elif r := re.match("(\d+)M", opt.time_span):
             delta = int(r.group(1)) * 60
         else:
             raise ValueError(f"unknown format {opt.time_span}")
