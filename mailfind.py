@@ -39,6 +39,8 @@ def find_mail(
                         print("  Date :", dt)
                     if dt is None:
                         dt = dt_of_mtime
+                    if dt.tzinfo is None:
+                        dt = dt.astimezone(tz=default_tz)
                     if ts_begin <= dt <= ts_end:
                         mail_date = info.get("Date")
                         if mail_date is not None:
