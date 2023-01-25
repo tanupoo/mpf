@@ -26,7 +26,10 @@ def decode_header_more(
                 else:
                     raise ValueError(f"unknown type {m[0]}")
             else:
-                sbjs.append(m[0].decode(m[1]))
+                try:
+                    sbjs.append(m[0].decode(m[1]))
+                except UnicodeDecodeError:
+                    sbjs.append(m[0].decode("unicode-escape"))
         ret = "".join(sbjs)
     elif isinstance(msg, Header):
         m2 = []
