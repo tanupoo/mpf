@@ -16,4 +16,4 @@ ap.add_argument("-v", action="store_true", dest="verbose",
                 help="enable verbose mode.")
 opt = ap.parse_args()
 
-decode_mime_file(opt.mime_file, opt.decode, opt.out_file, opt.verbose)
+decode_mime_file(opt.mail_file, opt.decode, opt.out_file, opt.verbose)
