@@ -11,9 +11,14 @@ from dateutil import tz
 
 tz_str = "Asia/Tokyo"
 
-def find_mail(path, recursive=False, newer_than=None):
-    mail_entries = []  # updated in walk_dir()
-    def walk_dir(path, recursive=False, newer_than=None):
+def find_mail(
+        path: str,
+        recursive: bool,
+        ts_begin: datetime,
+        ts_end: datetime
+        ):
+    mail_infos = []  # updated in walk_dir()
+    def walk_dir(path):
         with os.scandir(path) as fd:
             for entry in fd:
                 if entry.name.startswith(".."):
@@ -23,15 +28,28 @@ def find_mail(path, recursive=False, newer_than=None):
                         walk_dir(entry.path, recursive)
                 elif entry.is_symlink():
                     continue
-                elif newer_than:
-                    if entry.stat().st_mtime >= newer_than:
-                        # this is the 1st filter by the timestamp on the disk.
-                        # The 2nd filter by the date field will be done later.
-                        mail_entries.append(entry)
-                    else:
-                        pass
                 else:
-                    mail_entries.append(entry)
+                    if opt.debug:
+                        print("-->", e.path)
+                    info = get_mail_info(entry.path)
+                    dt = info.get("Date")
+                    dt_of_mtime = datetime.fromtimestamp(entry.stat().st_mtime, tz=default_tz)
+                    if dt is None:
+                        dt = dt_of_mtime
+                    if ts_begin <= dt <= ts_end:
+                        mail_date = info.get("Date")
+                        if mail_date is not None:
+                            local_date = mail_date.astimezone(tz=default_tz)
+                        else:
+                            local_date = None
+                        info.update({
+                                "mtime": dt_of_mtime,
+                                "localDate": local_date,
+                                })
+                        mail_infos.append(info)
+                    else:
+                        # just ignore if span doesn't exist.
+                        pass
     #
     try:
         mode = os.stat(path).st_mode
@@ -41,86 +59,99 @@ def find_mail(path, recursive=False, newer_than=None):
     except Exception as e:
         print(f"ERROR: {path}", e)
         return
-    walk_dir(path, recursive, newer_than)
-    mail_infos = []
-    for e in mail_entries:
-        if opt.debug:
-            print("-->", e.path)
-        info = get_mail_info(e.path)
-        info.update({
-                "mtime": datetime.fromtimestamp(e.stat().st_mtime).astimezone(tz=default_tz)
-                })
-        mail_infos.append(info)
+    walk_dir(path)
     for mi in sorted(mail_infos, key=lambda x: (x.get("Date") or x.get("mtime"))):
-        mail_date = mi.get("Date")
-        if mail_date is not None:
-            local_date = mail_date.astimezone(tz=default_tz)
-        else:
-            local_date = None
         print("##", mi.get("Path"))
         print("  mtime:", mi.get("mtime"))
-        print("  Mail :", mail_date)
-        print("  Local:", local_date)
+        print("  Mail :", mi.get("Date"))
+        print("  Local:", mi.get("localDate"))
         print("  From :", mi.get("From"))
         print("  Subject:", mi.get("Subject"))
 
-def datetime_before_month(dt, m):
-    delta_y = m // 12
-    delta_m = m % 12
-    y = dt.year - delta_y
-    m = dt.month - delta_m
-    if dt.month <= delta_m:
-        y -= 1
-        m += 12
-    try:
-        return datetime(y, m, dt.day, dt.hour, dt.minute, dt.second)
-    except ValueError as e:
-        if "day is out of range for month" in str(e):
-            next_month = datetime(y, m, 28) + timedelta(days=4)
-            d = (next_month - timedelta(days=next_month.day)).day
-            return datetime(y, m, d, dt.hour, dt.minute, dt.second)
+#
+# set timespan
+#
+def set_timespan(
+        ts_begin_str: str,
+        ts_end_str: str
+        ) -> tuple:
+    #
+    def datetime_before_month(dt, m):
+        delta_y = m // 12
+        delta_m = m % 12
+        y = dt.year - delta_y
+        m = dt.month - delta_m
+        if dt.month <= delta_m:
+            y -= 1
+            m += 12
+        try:
+            return datetime(y, m, dt.day, dt.hour, dt.minute, dt.second, tzinfo=default_tz)
+        except ValueError as e:
+            if "day is out of range for month" in str(e):
+                next_month = datetime(y, m, 28) + timedelta(days=4)
+                d = (next_month - timedelta(days=next_month.day)).day
+                return datetime(y, m, d, dt.hour, dt.minute, dt.second, tz=default_tz)
+            else:
+                raise
+    #
+    def parse_timespan_string(span_str: str) -> datetime:
+        if r := re.match("(\d+)m", span_str):
+            return datetime_before_month(dt_now, int(r.group(1)))
         else:
-            raise
+            if r := re.match("(\d+)w", span_str):
+                delta = int(r.group(1)) * 7*24*60*60
+            elif r := re.match("(\d+)d", span_str):
+                delta = int(r.group(1)) * 24*60*60
+            elif r := re.match("(\d+)H", span_str):
+                delta = int(r.group(1)) * 60*60
+            elif r := re.match("(\d+)M", span_str):
+                delta = int(r.group(1)) * 60
+            else:
+                raise ValueError(f"unknown format {span_str}")
+            return (dt_now - timedelta(seconds=delta))
+    #
+    dt_now = datetime.now(tz=default_tz)
+    if opt.ts_begin or opt.ts_end:
+        ts_begin = parse_timespan_string(opt.ts_begin)
+        ts_end = parse_timespan_string(opt.ts_end)
+    else:
+        # default is 1 hour.
+        ts_begin = dt_now - timedelta(seconds=60*60)
+        ts_end = dt_now
+    return ts_begin, ts_end
 
 # main
 ap = argparse.ArgumentParser()
 ap.add_argument("mail_dir", help="a directory name")
 ap.add_argument("-r", action="store_true", dest="recursively",
                 help="enable to find a mail file recursively.")
-ap.add_argument("-t", action="store", dest="time_span",
-                help="specify the span string to be picked. "
-                    "The string is either xm, xd, xw, xH, or xM (x is an integer.)"
-                )
+ap.add_argument("-a", action="store", dest="ts_begin",
+                help="specify the start span string.")
+ap.add_argument("-b", action="store", dest="ts_end",
+                help="specify the end span string.")
+ap.add_argument("--help-timespan", action="store_true", dest="show_help_timespan",
+                help="show help of time span.")
 ap.add_argument("--tz", action="store", dest="tz_str",
                 help="specify the timezone.")
 ap.add_argument("-d", action="store_true", dest="debug",
                 help="enable debug mode.")
 opt = ap.parse_args()
 
-# time_span is None: ts -> None
-# ts is not None and tz is None: newer_than -> ts
+if opt.show_help_timespan:
+    print("""
+    Example:
+        -a 5H: from 5 hours ago to now.
+        -a 17d -b 10d: from 17 days before, and to 10 days before.
+    """)
+    exit(0)
+
 if opt.tz_str:
     tz_str = opt.tz_str
 default_tz = tz.gettz(tz_str)
-dt = datetime.now(tz=default_tz)
-ts_limit = dt.timestamp()
-if opt.time_span:
-    if r := re.match("(\d+)m", opt.time_span):
-        ts_limit = datetime_before_month(dt, int(r.group(1))).timestamp()
-    else:
-        if r := re.match("(\d+)w", opt.time_span):
-            delta = int(r.group(1)) * 7*24*60*60
-        elif r := re.match("(\d+)d", opt.time_span):
-            delta = int(r.group(1)) * 24*60*60
-        elif r := re.match("(\d+)H", opt.time_span):
-            delta = int(r.group(1)) * 60*60
-        elif r := re.match("(\d+)M", opt.time_span):
-            delta = int(r.group(1)) * 60
-        else:
-            raise ValueError(f"unknown format {opt.time_span}")
-        ts_limit = (dt - timedelta(seconds=delta)).timestamp()
-else:
-    ts_limit = (dt - timedelta(seconds=60*60)).timestamp()
+ts_begin, ts_end = set_timespan(opt.ts_begin, opt.ts_end)
 
 # body
-find_mail(opt.mail_dir, recursive=opt.recursively, newer_than=ts_limit)
+find_mail(opt.mail_dir,
+          recursive=opt.recursively,
+          ts_begin=ts_begin,
+          ts_end=ts_end)
