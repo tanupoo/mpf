@@ -79,26 +79,56 @@ def set_timespan(
         ts_end_str: str
         ) -> tuple:
     #
-    def datetime_before_month(dt, m):
-        delta_y = m // 12
-        delta_m = m % 12
+    def get_last_day_of_month(y: int, m: int) -> int:
+        next_month = datetime(y, m, 28) + timedelta(days=4)
+        return (next_month - timedelta(days=next_month.day)).day
+    #
+    def datetime_before_year(dt: datetime, delta_y: int) -> datetime:
+        if dt.year - delta_y % 4 == 0 and dt.month == 2 and dt.day == 29:
+            d = 28
+        else:
+            d = dt.day
+        return datetime(dt.year - delta_y, dt.month, d, dt.hour, dt.minute, dt.second,
+                        tzinfo=dt.tzinfo)
+        """
+        y = dt.year - y
+        try:
+            return datetime(y, dt.month, dt.day, dt.hour, dt.minute, dt.second,
+                            tzinfo=dt.tzinfo)
+        except ValueError as e:
+            if "day is out of range for month" in str(e):
+                d = get_last_day_of_month(y, dt.month)
+                return datetime(y, dt.month, d, dt.hour, dt.minute, dt.second,
+                                tz=dt.tzinfo)
+            else:
+                raise
+        """
+    #
+    def datetime_before_month(dt: datetime, delta_m: int) -> datetime:
+        delta_y = delta_m // 12
+        delta_m = delta_m % 12
         y = dt.year - delta_y
         m = dt.month - delta_m
         if dt.month <= delta_m:
             y -= 1
             m += 12
         try:
-            return datetime(y, m, dt.day, dt.hour, dt.minute, dt.second, tzinfo=default_tz)
+            return datetime(y, m, dt.day, dt.hour, dt.minute, dt.second,
+                            tzinfo=dt.tzinfo)
         except ValueError as e:
             if "day is out of range for month" in str(e):
-                next_month = datetime(y, m, 28) + timedelta(days=4)
-                d = (next_month - timedelta(days=next_month.day)).day
-                return datetime(y, m, d, dt.hour, dt.minute, dt.second, tz=default_tz)
+                d = get_last_day_of_month(y, m)
+                return datetime(y, m, d, dt.hour, dt.minute, dt.second,
+                                tz=dt.tzinfo)
             else:
                 raise
     #
     def parse_timespan_string(span_str: str) -> datetime:
-        if r := re.match("(\d+)m", span_str):
+        if span_str is None:
+            return dt_now
+        elif r := re.match("(\d+)y", span_str):
+            return datetime_before_year(dt_now, int(r.group(1)))
+        elif r := re.match("(\d+)m", span_str):
             return datetime_before_month(dt_now, int(r.group(1)))
         else:
             if r := re.match("(\d+)w", span_str):
@@ -152,6 +182,9 @@ if opt.tz_str:
     tz_str = opt.tz_str
 default_tz = tz.gettz(tz_str)
 ts_begin, ts_end = set_timespan(opt.ts_begin, opt.ts_end)
+if opt.debug:
+    print("ts_begin:", ts_begin)
+    print("ts_end:", ts_end)
 
 # body
 find_mail(opt.mail_dir,
