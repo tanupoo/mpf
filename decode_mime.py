@@ -1,25 +1,49 @@
 
 import sys
 from email.message import Message as emailMessage
-from email.header import decode_header
-from email import message_from_file
+from email.header import decode_header, Header
+from email import message_from_binary_file
+from dateutil.parser import parse as dt_parse
+from email import charset as _charset
+from typing import Union
 
-def decode_subject(
-        msg: str,
+def decode_header_more(
+        msg: Union[str, Header],
         ) -> str:
-    # =?charset?encoding?encoded-text?=
-    sbjs = []
-    for m in decode_header(msg):
-        if m[1] is None:
-            if isinstance(m[0], str):
-                sbjs.append(m[0])
-            elif isinstance(m[0], bytes):
-                sbjs.append(m[0].decode())
+    if isinstance(msg, str):
+        """
+        either a string or an encoded string such as =?charset?encoding?encoded-text?=
+        """
+        sbjs = []
+        for m in decode_header(msg):
+            if m[1] is None:
+                if isinstance(m[0], str):
+                    sbjs.append(m[0])
+                elif isinstance(m[0], bytes):
+                    sbjs.append(m[0].decode())
+                else:
+                    raise ValueError(f"unknown type {m[0]}")
             else:
-                raise ValueError(f"unknown type {m[0]}")
+                sbjs.append(m[0].decode(m[1]))
+        ret = "".join(sbjs)
+    elif isinstance(msg, Header):
+        m2 = []
+        for string, charset in msg._chunks:
+            if charset == _charset.UNKNOWN8BIT:
+                m2.append(string.encode('ascii', 'surrogateescape'))
+            else:
+                m2.append(string)
+        msg = b"".join(m2)
+        for c in ["iso-2022-jp", "utf-8", "eucjp", "sjis"]:
+            try:
+                ret = msg.decode(c)
+            except UnicodeDecodeError:
+                continue
         else:
-            sbjs.append(m[0].decode(m[1]))
-    return "".join(sbjs)
+            return None
+    else:
+        raise NotImplemented
+    return ret.replace("\n","")
 
 def decode_mime(
         msg: emailMessage,
@@ -66,12 +90,12 @@ def decode_mime(
                     else:
                         print(f"ERROR: the option -o is required for {ct}")
 
-def read_mime_file(mime_file: str) -> emailMessage:
+def read_mail_file(mime_file: str) -> emailMessage:
     if mime_file is None:
-        msg = message_from_file(sys.stdin)
+        msg = message_from_binary_file(sys.stdin)
     else:
-        with open(mime_file, "r") as fd:
-            msg = message_from_file(fd)
+        with open(mime_file, "rb") as fd:
+            msg = message_from_binary_file(fd)
     return msg
 
 def decode_mime_file(
@@ -79,5 +103,20 @@ def decode_mime_file(
         decode_id: int=None,
         out_file: str=None,
         ) -> None:
-    msg = read_mime_file(mime_file)
+    msg = read_mail_file(mime_file)
     decode_mime(msg, decode_id, out_file)
+
+def get_mail_info(
+        path: str,
+        ) -> dict:
+    """
+    convertint text into readable text
+    """
+    info = {}
+    info.update({"Path": path})
+    em = read_mail_file(path)
+    info.update({"Date": dt_parse(em.get("Date"))})
+    info.update({"Subject": decode_header_more(em.get("Subject"))})
+    info.update({"From": decode_header_more(em.get("From"))})
+    return info
+
