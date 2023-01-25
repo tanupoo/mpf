@@ -131,6 +131,7 @@ def decode_mime_file(
 
 def get_mail_info(
         path: str,
+        default_tz,
         ) -> dict:
     """
     convertint text into readable text
@@ -138,10 +139,13 @@ def get_mail_info(
     info = {}
     info.update({"Path": path})
     em = read_mail_file(path)
-    dt = em.get("Date")
-    if dt:
+    date_str = em.get("Date")
+    if date_str:
         try:
-            info.update({"Date": dt_parse(dt, fuzzy_with_tokens=True)[0]})
+            dt = dt_parse(date_str, fuzzy_with_tokens=True)[0]
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=default_tz)
+            info.update({"Date": dt})
         except ParserError:
             info.update({"Date": None})
     else:
