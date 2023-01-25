@@ -4,13 +4,13 @@ Multipurpose Filter
 ## MIME decode
 
 ```
-% mimedecode.py -h
-usage: mimedecode.py [-h] [-x DECODE] [-o OUT_FILE] [mime_file]
+% maildecode.py -h
+usage: maildecode.py [-h] [-x DECODE] [-o OUT_FILE] [mail_file]
 
-mime decoder.
+mail decoder.
 
 positional arguments:
-  mime_file    specify a filename.
+  mail_file    specify a filename.
 
 options:
   -h, --help   show this help message and exit

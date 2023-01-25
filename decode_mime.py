@@ -51,36 +51,51 @@ def decode_mime(
         msg: emailMessage,
         decode_id: int=None,
         out_file: str=None,
+        verbose: bool=False,
         ) -> None:
+    """
+    decode_id:
+        None means to show the list.
+        0 to decode the header
+    """
     #
-    for cid,p in enumerate(msg.walk()):
-        ct = f"{p.get_content_maintype()}/{p.get_content_subtype()}"
-        # Content-Disposition: attachment; filename="SIG-SWO-056-16.pdf"
-        if decode_id is None:
+    if decode_id is None:
+        def print_hdr(m, hdr_key):
+            hdr_value = m.get(hdr_key)
+            if hdr_value is not None:
+                print(hdr_key, hdr_value)
+        #
+        for cid,p in enumerate(msg.walk()):
+            ct = f"{p.get_content_maintype()}/{p.get_content_subtype()}"
             if cid == 0:
-                print(f"# Date: {p.get('Date')}")
-                print(f"From: {p.get('From')}")
-                print(f"To: {p.get('To')}")
-                print(f"Subject: {p.get('Subject')}")
+                if verbose:
+                    for k,v in p.items():
+                        print(f"{k}: {v}")
+                else:
+                    print(f"\n# {cid}")
+                    print(f"Date: {p.get('Date')}")
+                    print(f"From: {p.get('From')}")
+                    print(f"To: {p.get('To')}")
+                    print(f"Subject: {p.get('Subject')}")
             else:
                 #print("{}# {}".format("\n" if cid != 1 else "", cid))
                 print(f"\n# {cid}")
-                for k,v in p.items():
-                    print(f"{k}: {v}")
-                #print("content-type", ct)
-                #cte = p.get("Content-Transfer-Encoding")
-                #if cte is not None:
-                #    print("encoding:", cte)
+                if verbose:
+                    for k,v in p.items():
+                        print(f"{k}: {v}")
+                else:
+                    print_hdr(p, "Content-Type")
+                    print_hdr(p, "Content-Transfer-Encoding")
                 body = p.get_payload(decode=True)
                 if body is not None:
                     print("size:", len(body))
                 else:
                     print("size:", 0)
-        elif decode_id == cid:
-            if cid == 0:
-                for k,v in p.items():
-                    print(f"{k}: {v}")
-            else:
+    else:
+        for cid,p in enumerate(msg.walk()):
+            ct = f"{p.get_content_maintype()}/{p.get_content_subtype()}"
+            # Content-Disposition: attachment; filename="SIG-SWO-056-16.pdf"
+            if decode_id == cid:
                 body = p.get_payload(decode=True)
                 if body is not None:
                     if out_file:
@@ -91,6 +106,7 @@ def decode_mime(
                         print(body.decode(charset))
                     else:
                         print(f"ERROR: the option -o is required for {ct}")
+                break
 
 def read_mail_file(mime_file: str) -> emailMessage:
     if mime_file is None:
@@ -104,9 +120,10 @@ def decode_mime_file(
         mime_file: str,
         decode_id: int=None,
         out_file: str=None,
+        verbose: bool=False,
         ) -> None:
     msg = read_mail_file(mime_file)
-    decode_mime(msg, decode_id, out_file)
+    decode_mime(msg, decode_id, out_file, verbose)
 
 def get_mail_info(
         path: str,
