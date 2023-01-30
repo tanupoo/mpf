@@ -227,8 +227,8 @@ ap.add_argument("-a", action="store", dest="ts_begin",
                 help="specify the start span string.")
 ap.add_argument("-b", action="store", dest="ts_end",
                 help="specify the end span string.")
-ap.add_argument("-q", action="store_true", dest="quick_search",
-                help="specify to use quick mode.")
+ap.add_argument("-m", action="store_true", dest="use_mail_date",
+                help="specify to use Date field in the message.")
 ap.add_argument("--help-timespan", action="store_true", dest="show_help_timespan",
                 help="show help of time span.")
 ap.add_argument("--tz", action="store", dest="tz_str",
@@ -254,13 +254,13 @@ if opt.debug:
     print("dt_end:", dt_end)
 
 # body
-if opt.quick_search:
-    find_mail_quick(opt.mail_dir,
+if opt.use_mail_date:
+    find_mail(opt.mail_dir,
             recursive=opt.recursively,
             dt_begin=dt_begin,
             dt_end=dt_end)
 else:
-    find_mail(opt.mail_dir,
+    find_mail_quick(opt.mail_dir,
             recursive=opt.recursively,
             dt_begin=dt_begin,
             dt_end=dt_end)
