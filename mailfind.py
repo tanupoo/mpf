@@ -15,7 +15,8 @@ def find_mail_quick(
         path: str,
         recursive: bool,
         dt_begin: datetime,
-        dt_end: datetime
+        dt_end: datetime,
+        reverse: bool=False,
         ):
     target_mails = []  # updated in walk_dir()
     ts_begin = dt_begin.timestamp()
@@ -66,7 +67,8 @@ def find_mail_quick(
                 })
         mail_infos.append(info)
     #
-    for mi in sorted(mail_infos, key=lambda x: (x.get("Date") or x.get("mtime"))):
+    for mi in sorted(mail_infos, key=lambda x: (x.get("Date") or x.get("mtime")),
+                     reverse=reverse):
         print("##", mi.get("Path"))
         print("  mtime:", mi.get("mtime"))
         print("  Mail :", mi.get("Date"))
@@ -78,7 +80,8 @@ def find_mail(
         path: str,
         recursive: bool,
         dt_begin: datetime,
-        dt_end: datetime
+        dt_end: datetime,
+        reverse: bool=False,
         ):
     mail_infos = []  # updated in walk_dir()
     def walk_dir(path):
@@ -221,8 +224,10 @@ def set_timespan(
 # main
 ap = argparse.ArgumentParser()
 ap.add_argument("mail_dir", help="a directory name")
-ap.add_argument("-r", action="store_true", dest="recursively",
+ap.add_argument("-R", action="store_true", dest="recursively",
                 help="enable to find a mail file recursively.")
+ap.add_argument("-r", action="store_true", dest="reverse",
+                help="reverse the order.")
 ap.add_argument("-a", action="store", dest="ts_begin",
                 help="specify the start span string.")
 ap.add_argument("-b", action="store", dest="ts_end",
@@ -270,9 +275,11 @@ if opt.use_mail_date:
     find_mail(opt.mail_dir,
             recursive=opt.recursively,
             dt_begin=dt_begin,
-            dt_end=dt_end)
+            dt_end=dt_end,
+            reverse=opt.reverse)
 else:
     find_mail_quick(opt.mail_dir,
             recursive=opt.recursively,
             dt_begin=dt_begin,
-            dt_end=dt_end)
+            dt_end=dt_end,
+            reverse=opt.reverse)
