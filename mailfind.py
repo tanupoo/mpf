@@ -239,6 +239,18 @@ opt = ap.parse_args()
 
 if opt.show_help_timespan:
     print("""
+    Format:
+        -a AT: the start of the time span.
+        -b BT: the end of the time span.
+          A is a number. B as well.  T is a type of span.
+          The span is [A, B].
+    Valid 'T' string:
+        y: year.
+        m: month.
+        d: day.
+        w: week.
+        H: hour.
+        M: minute.
     Example:
         -a 5H: from 5 hours ago to now.
         -a 17d -b 10d: from 17 days before, and to 10 days before.
