@@ -24,4 +24,4 @@ opt = ap.parse_args()
 if opt.tz_str:
     tz_str = opt.tz_str
 default_tz = tz.gettz(tz_str)
-decode_mime_file(opt.mail_file, opt.decode, opt.out_file, default_tz, opt.verbose)
+decode_mime_file(opt.mail_file, default_tz, opt.decode, opt.out_file, opt.verbose)
