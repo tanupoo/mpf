@@ -5,6 +5,7 @@ from email.header import decode_header, Header
 from email import message_from_binary_file
 from dateutil.parser import parse as dt_parse
 from dateutil.parser._parser import ParserError
+from dateutil.tz.tz import tzfile
 from email import charset as _charset
 from typing import Union
 
@@ -52,7 +53,7 @@ def decode_header_more(
     return ret.replace("\n","")
 
 def decode_mime(
-        msg: emailMessage,
+        info: dict,
         decode_id: int=None,
         out_file: str=None,
         verbose: bool=False,
@@ -62,6 +63,7 @@ def decode_mime(
         None means to show the list.
         0 to decode the header
     """
+    msg = info["EMObject"]
     #
     if decode_id is None:
         def print_hdr(m, hdr_key):
@@ -76,11 +78,10 @@ def decode_mime(
                     for k,v in p.items():
                         print(f"{k}: {v}")
                 else:
-                    print(f"\n# {cid}")
-                    print(f"Date: {p.get('Date')}")
-                    print(f"From: {p.get('From')}")
-                    print(f"To: {p.get('To')}")
-                    print(f"Subject: {p.get('Subject')}")
+                    print("Date :", info.get("Date"))
+                    print("From :", info.get("From"))
+                    print("To   :", info.get("To"))
+                    print("Subject:", info.get("Subject"))
             else:
                 #print("{}# {}".format("\n" if cid != 1 else "", cid))
                 print(f"\n# {cid}")
@@ -120,18 +121,9 @@ def read_mail_file(mime_file: str) -> emailMessage:
             msg = message_from_binary_file(fd)
     return msg
 
-def decode_mime_file(
-        mime_file: str,
-        decode_id: int=None,
-        out_file: str=None,
-        verbose: bool=False,
-        ) -> None:
-    msg = read_mail_file(mime_file)
-    decode_mime(msg, decode_id, out_file, verbose)
-
 def get_mail_info(
         path: str,
-        default_tz,
+        default_tz: tzfile,
         ) -> dict:
     """
     convertint text into readable text
@@ -139,6 +131,7 @@ def get_mail_info(
     info = {}
     info.update({"Path": path})
     em = read_mail_file(path)
+    info.update({"EMObject": em})
     date_str = em.get("Date")
     if date_str:
         try:
@@ -152,5 +145,16 @@ def get_mail_info(
         info.update({"Date": None})
     info.update({"Subject": decode_header_more(em.get("Subject"))})
     info.update({"From": decode_header_more(em.get("From"))})
+    info.update({"To": decode_header_more(em.get("To"))})
     return info
+
+def decode_mime_file(
+        mime_file: str,
+        default_tz: tzfile,
+        decode_id: int=None,
+        out_file: str=None,
+        verbose: bool=False,
+        ) -> None:
+    info = get_mail_info(mime_file, default_tz)
+    decode_mime(info, decode_id, out_file, verbose)
 
