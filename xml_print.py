@@ -1,16 +1,33 @@
 #!/usr/bin/env python
 
 import xml.dom.minidom
+from xml.parsers.expat import ExpatError
 from argparse import ArgumentParser
 import sys
+import re
 
 def do_parse(fd, indent=2):
+    """
+    getting the line when an error happens,
+    reading lines from the fd instead directly parsing fd.
+    """
+    lines = fd.readlines()
     try:
-        document = xml.dom.minidom.parse(fd)
-        print(document.toprettyxml(indent=" "*indent))
+        doc = xml.dom.minidom.parseString("".join(lines))
     except ValueError as e:
-        print(e)
+        print(f"ERROR: {e}")
         exit(1)
+    except xml.parsers.expat.ExpatError as e:
+        print(f"ERROR: {e}")
+        if r := re.match("[^:]+: line (\d+)", str(e)):
+            print(lines[int(r.group(1))], end="")
+        exit(1)
+    #
+    lines = []
+    for line in doc.toprettyxml(indent=" "*indent).split("\n"):
+        if len(line.strip()):
+            lines.append(line)
+    print("\n".join(lines))
 
 ap = ArgumentParser()
 ap.add_argument("file", nargs="*")
