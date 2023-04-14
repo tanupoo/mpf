@@ -194,18 +194,18 @@ def set_timespan(
     def parse_timespan_string(span_str: str) -> datetime:
         if span_str is None:
             return dt_now
-        elif r := re.match("(\d+)y", span_str):
+        elif r := re.match("(\d+)Y", span_str):
             return datetime_before_year(dt_now, int(r.group(1)))
-        elif r := re.match("(\d+)m", span_str):
+        elif r := re.match("(\d+)M", span_str):
             return datetime_before_month(dt_now, int(r.group(1)))
         else:
-            if r := re.match("(\d+)w", span_str):
+            if r := re.match("(\d+)W", span_str):
                 delta = int(r.group(1)) * 7*24*60*60
-            elif r := re.match("(\d+)d", span_str):
+            elif r := re.match("(\d+)D", span_str):
                 delta = int(r.group(1)) * 24*60*60
-            elif r := re.match("(\d+)H", span_str):
+            elif r := re.match("(\d+)h", span_str):
                 delta = int(r.group(1)) * 60*60
-            elif r := re.match("(\d+)M", span_str):
+            elif r := re.match("(\d+)m", span_str):
                 delta = int(r.group(1)) * 60
             else:
                 raise ValueError(f"unknown format {span_str}")
@@ -250,15 +250,15 @@ if opt.show_help_timespan:
           A is a number. B as well.  T is a type of span.
           The span is [A, B].
     Valid 'T' string:
-        y: year.
-        m: month.
-        d: day.
-        w: week.
-        H: hour.
-        M: minute.
+        Y: year.
+        M: month.
+        D: day.
+        W: week.
+        h: hour.
+        m: minute.
     Example:
-        -a 5H: from 5 hours ago to now.
-        -a 17d -b 10d: from 17 days before, and to 10 days before.
+        -a 5h: from 5 hours ago to now.
+        -a 17D -b 10D: from 17 days before, and to 10 days before.
     """)
     exit(0)
 
