@@ -223,7 +223,8 @@ def set_timespan(
 
 # main
 ap = argparse.ArgumentParser()
-ap.add_argument("mail_dir", help="a directory name")
+ap.add_argument("-i", action="store", dest="mail_dir",
+                help="a directory name to be searched.  MPF_MAILDIR can be used.")
 ap.add_argument("-R", action="store_true", dest="recursively",
                 help="enable to find a mail file recursively.")
 ap.add_argument("-r", action="store_true", dest="reverse",
@@ -241,6 +242,14 @@ ap.add_argument("--tz", action="store", dest="tz_str",
 ap.add_argument("-d", action="store_true", dest="debug",
                 help="enable debug mode.")
 opt = ap.parse_args()
+
+if opt.mail_dir is None:
+    mail_dir = os.environ.get("MPF_MAILDIR")
+else:
+    mail_dir = opt.mail_dir
+if not mail_dir: # None or a zero string.
+    print("ERROR: mail_dir is not specified.")
+    exit(0)
 
 if opt.show_help_timespan:
     print("""
@@ -272,13 +281,13 @@ if opt.debug:
 
 # body
 if opt.use_mail_date:
-    find_mail(opt.mail_dir,
+    find_mail(mail_dir,
             recursive=opt.recursively,
             dt_begin=dt_begin,
             dt_end=dt_end,
             reverse=opt.reverse)
 else:
-    find_mail_quick(opt.mail_dir,
+    find_mail_quick(mail_dir,
             recursive=opt.recursively,
             dt_begin=dt_begin,
             dt_end=dt_end,
