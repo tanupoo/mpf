@@ -233,10 +233,11 @@ ap.add_argument("-a", action="store", dest="ts_begin",
                 help="specify the start span string.")
 ap.add_argument("-b", action="store", dest="ts_end",
                 help="specify the end span string.")
-ap.add_argument("-m", action="store_true", dest="use_mail_date",
-                help="specify to use Date field in the message.")
 ap.add_argument("--help-timespan", action="store_true", dest="show_help_timespan",
                 help="show help of time span.")
+ap.add_argument("-m", action="store_true", dest="use_mail_date",
+                help="specify to use Date field in the message. "
+                "it's slow as loading each file.")
 ap.add_argument("--tz", action="store", dest="tz_str",
                 help="specify the timezone.")
 ap.add_argument("-d", action="store_true", dest="debug",
