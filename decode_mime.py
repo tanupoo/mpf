@@ -108,6 +108,8 @@ def decode_mime(
                             fd.write(body)
                     elif ct in [ "text/plain", "text/html" ]:
                         charset = p.get_charsets()[0]
+                        if charset is None:
+                            charset = 'utf-8'
                         print(body.decode(charset))
                     else:
                         print(f"ERROR: the option -o is required for {ct}")
