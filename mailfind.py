@@ -74,6 +74,7 @@ def find_mail_quick(
         print("  Mail :", mi.get("Date"))
         print("  Local:", mi.get("localDate"))
         print("  From :", mi.get("From"))
+        print("    To :", mi.get("To"))
         print("  Subject:", mi.get("Subject"))
 
 def find_mail(
@@ -137,6 +138,7 @@ def find_mail(
         print("  Mail :", mi.get("Date"))
         print("  Local:", mi.get("localDate"))
         print("  From :", mi.get("From"))
+        print("    To :", mi.get("To"))
         print("  Subject:", mi.get("Subject"))
 
 #
